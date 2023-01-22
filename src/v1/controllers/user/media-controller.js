@@ -1,0 +1,86 @@
+const fs = require('fs');
+const formData = require('form-data');
+const rimraf = require('rimraf');
+const convert = require('heic-convert');
+const { promisify } = require('util');
+const axios = require('axios');
+const { cloudinary } = require('~/plugins/upload-plugin');
+const Helper = require('~/plugins/helper-plugin');
+const MediaModel = require('@v1/models/media-model');
+
+class MediaController {
+  static async upload(req, res) {
+    try {
+      let result = [];
+      await Promise.all(
+        req.files.map(async (file) => {
+          let filename = file.filename;
+          let regMimetype = new RegExp(/\.heic$/);
+          if (regMimetype.test(file.path)) {
+            const inputBuffer = await promisify(fs.readFile)(file.path);
+            const outputBuffer = await convert({
+              buffer: inputBuffer, // the HEIC file buffer
+              format: 'JPEG', // output format
+              quality: 1, // the jpeg compression quality, between 0 and 1
+            });
+            let newF = file.path.replace('.heic', '.jpg');
+            filename = filename.replace('.heic', '.jpg');
+            await promisify(fs.writeFile)(newF, outputBuffer);
+            fs.unlinkSync(file.path);
+          }
+          let data = await cloudinary.uploader.upload(file.path);
+          let reg = new RegExp(`/upload/(v[0-9]+)/(${data.public_id}.*)`);
+          let regExec = reg.exec(data.url);
+          let path = `${process.env.MEDIA_PUBLISH}/cloud/${process.env.CLOUD_NAME}/uid/${regExec[1]}/${regExec[2]}`;
+          let media = await MediaModel.create({
+            path,
+            size: file.size,
+            mimetype: file.mimetype,
+            name: filename,
+            createdBy: req.payload.id,
+            uid: regExec[1],
+          });
+          result.push({
+            path: media.path,
+            mimetype: media.mimetype,
+            name: media.name,
+            size: media.size,
+          });
+        }),
+      );
+      let tmp = `${appRoot}/public/media/cloud/${req.payload.id}-${Helper.getFolderNameByMonth()}`;
+      rimraf.sync(`${tmp}/*`);
+      fs.rmdirSync(tmp);
+      return res.status(200).send(result.length > 1 ? result : result[0]);
+    } catch (error) {
+      console.log(error);
+      return res.status(400).send({ error: 'upload-media-error' });
+    }
+  }
+
+  // static async cloudSingle(req, res) {
+  //   try {
+  //     let reg = new RegExp(`/upload/(v[0-9]+)/(${req.file.filename}.*)`);
+  //     let regExec = reg.exec(req.file.path);
+  //     let media = await MediaModel.create({
+  //       path: `${process.env.MEDIA_PUBLISH}/cloud/${process.env.CLOUD_NAME}/uid/${regExec[1]}/${regExec[2]}`,
+  //       size: req.file.size,
+  //       mimetype: req.file.mimetype,
+  //       name: req.file.filename,
+  //       created_by: req.payload.id,
+  //       uid: regExec[1],
+  //     });
+  //     return res.status(200).send({
+  //       path: media.path,
+  //       mimetype: media.mimetype,
+  //       name: media.name,
+  //       size: media.size,
+  //     });
+  //   } catch (error) {
+  //     console.log(error);
+  //     return res.status(400).send({ error: 'upload-media-error' });
+  //   }
+  // }
+}
+
+module.exports = MediaController;
