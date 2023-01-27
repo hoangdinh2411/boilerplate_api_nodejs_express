@@ -1,7 +1,9 @@
 const requestIp = require('request-ip');
 const satelize = require('satelize');
-const moment = require('moment-timezone');
+const moment = require('moment');
 const sha256 = require('sha256');
+const fs = require('fs');
+const path = require('path');
 
 class Helper {
   static isTimeByTimezone(ip) {
@@ -62,7 +64,7 @@ class Helper {
         headers: headers,
         data: data,
       };
-      return await axios(config);
+      return (await axios(config)).data;
     } catch (error) {
       return false;
     }
@@ -83,6 +85,21 @@ class Helper {
 
   static typeValue(value) {
     return Object.prototype.toString.call(value).slice(8, -1);
+  }
+
+  static logEvent(message) {
+    try {
+      const fileName = path.join(
+        __dirname,
+        '../logs',
+        `${moment().format('DD/MM/YYYY').replaceAll('/', '-')}.log`,
+      );
+      const timeLog = moment().format('hh:mm:ss A');
+      const content = `${timeLog} --> ${message}\n`;
+      fs.appendFileSync(fileName, content);
+    } catch (error) {
+      console.log('logEvent error:::', error);
+    }
   }
 }
 

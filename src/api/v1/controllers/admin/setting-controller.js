@@ -1,3 +1,4 @@
+const createError = require('http-errors');
 const settingValidate = require('@v1/validations/setting-validate');
 const LanguageModel = require('@v1/models/language-model');
 const SettingModel = require('@v1/models/setting-model');
@@ -45,7 +46,7 @@ class SettingController {
 
       return res.status(200).send(language);
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 

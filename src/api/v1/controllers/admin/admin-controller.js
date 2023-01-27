@@ -1,5 +1,6 @@
 const passport = require('passport');
 const localStrategy = require('passport-local').Strategy;
+const createError = require('http-errors');
 const AdminModel = require('@v1/models/admin-model');
 
 class AdminController {
@@ -30,10 +31,6 @@ class AdminController {
       username: process.env.ADMIN_ACCOUNT_EMAIL,
     });
     if (existed) return res.status(422).json({ error: 'username-exists' });
-    console.log(
-      '🚀 ~ file: admin-controller.js:50 ~ AdminController ~ createInit ~ process.env.ADMIN_ACCOUNT_PASS',
-      process.env.ADMIN_ACCOUNT_PASS,
-    );
     let newAdmin = new AdminModel({
       username: process.env.ADMIN_ACCOUNT_EMAIL,
       name: 'Admin',
@@ -57,12 +54,8 @@ class AdminController {
 
     return passport.authenticate('local', { session: false }, (err, passportUser, info) => {
       if (err) return next(createError.Unauthorized(err));
-      if (passportUser) {
-        const admin = passportUser;
-        admin.token = passportUser.generateJWT(remember);
-        return res.json(admin.jsonData(remember));
-      }
-      return res.status(400).json({ error: info });
+      if (passportUser) return res.json(passportUser.jsonData(remember));
+      return next(createError.BadRequest(info));
     })(req, res, next);
   }
 }

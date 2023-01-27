@@ -85,4 +85,4 @@ sw.*
 
 admin.json
 
-api.http
+rest.http

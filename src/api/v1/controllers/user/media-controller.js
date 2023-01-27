@@ -1,9 +1,8 @@
 const fs = require('fs');
-const formData = require('form-data');
+const rimraf = require('rimraf');
 const convert = require('heic-convert');
 const { promisify } = require('util');
-const axios = require('axios');
-const rimraf = require('rimraf');
+const { cloudinary } = require('~/plugins/upload-plugin');
 const Helper = require('~/plugins/helper-plugin');
 const MediaModel = require('@v1/models/media-model');
 
@@ -53,7 +52,7 @@ class MediaController {
       return res.status(200).send(result.length > 1 ? result : result[0]);
     } catch (error) {
       console.log(error);
-      return res.status(400).send({ error: 'upload-media-error' });
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -77,7 +76,7 @@ class MediaController {
   //     });
   //   } catch (error) {
   //     console.log(error);
-  //     return res.status(400).send({ error: 'upload-media-error' });
+  //     return next(createError.BadRequest(error.message));
   //   }
   // }
 }

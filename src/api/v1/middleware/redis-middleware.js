@@ -1,14 +1,15 @@
-const { incr } = require('@v1/modules/limiter-module');
+const { client } = require('~/config/db/redis-connect');
 
 const redisMiddleware = async (req, res, next) => {
   try {
     let ipUser = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    let numRequest = await incr(ipUser);
-    if (numRequest < 20)
+    let numRequest = await client.incr(ipUser);
+    if (numRequest === 1) await client.expire(ipUser, 60);
+
+    if (numRequest > 20)
       return res.status(503).json({
         status: 'error',
         message: 'Server is busy!',
-        numRequest,
       });
     next();
   } catch (error) {

@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
 
-require('@v1/routers/index')(app);
+app.use('/v1', require('@v1'));
 
 module.exports = app;

@@ -1,3 +1,4 @@
+const createError = require('http-errors');
 const UserModel = require('@v1/models/user-model');
 const otpModule = require('@v1/modules/otp-module');
 
@@ -12,7 +13,7 @@ class UserController {
 
     let generator = await otpModule.generatorForgotPassword(user);
     if (generator.status === 'new') {
-      let emailSend = new emailModule('forgot_password', 'vi', email);
+      let emailSend = new emailModule('forgot-password', 'vi', email);
 
       await emailSend.send_email({
         fullName: user.fullName,
@@ -40,7 +41,7 @@ class UserController {
       await user.save();
       return res.status(200).send({ message: 'reset-password-success' });
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -58,7 +59,7 @@ class UserController {
 
       return res.status(200).send({ count, list });
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 }

@@ -1,3 +1,4 @@
+const createError = require('http-errors');
 const { client } = require('~/config/db/redis-connect');
 const UserModel = require('@v1/models/user-model');
 const UserDeviceModel = require('@v1/models/user-device-model');
@@ -11,11 +12,10 @@ class MeController {
       let user = await UserModel.findOne({
         _id: req.payload.id,
       }).select('-password');
-      if (!user) return res.status(401).send({ error: 'user-not-found' });
 
       return res.status(200).send(user);
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -38,15 +38,10 @@ class MeController {
       avatar && new URL(avatar);
       coverImage && new URL(coverImage);
       await userValidate.userSave.validateAsync(data);
-      let user;
-      user = await UserModel.findOne({
-        _id: req.payload.id,
-      });
-      if (!user) return res.status(404).send({ error: 'user-not-found' });
 
-      user = await UserModel.findOneAndUpdate({ _id: req.payload.id }, data, {
+      let user = await UserModel.findOneAndUpdate({ _id: req.payload.id }, data, {
         new: true,
-      }).select(['-hash', '-salt']);
+      }).select('-password');
       let hasVerify = !!(user.phone && user.avatar && user.introduce && user.language);
 
       if (user.verify !== hasVerify)
@@ -60,11 +55,11 @@ class MeController {
           {
             new: true,
           },
-        ).select(['-hash', '-salt']);
+        ).select('-password');
       return res.status(200).send(user);
     } catch (error) {
       console.log(error);
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -72,23 +67,18 @@ class MeController {
     let { language } = req.body;
     if (!language) return res.status(422).send({ error: 'language-is-require' });
     try {
-      let user;
-      user = await UserModel.findOne({
-        _id: req.payload.id,
-      });
-      if (!user) return res.status(404).send({ error: 'user-not-found' });
       let languageUser = await LanguageModel.findOne({ locale: language });
       if (!languageUser) return res.status(404).send({ error: 'language-not-found' });
-      user = await UserModel.findOneAndUpdate(
-        { _id: user._id },
+      let user = await UserModel.findOneAndUpdate(
+        { _id: req.payload.id },
         { language: languageUser._id },
         {
           new: true,
         },
-      ).select(['-hash', '-salt']);
+      ).select('-password');
       return res.status(200).send(user);
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -113,7 +103,7 @@ class MeController {
       }
       return res.status(200).send(create);
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -135,7 +125,7 @@ class MeController {
 
       return res.status(200).send({ message: 'notification-update-status-success' });
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -154,7 +144,7 @@ class MeController {
 
       return res.send({ message: 'delete-device-success' });
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -168,7 +158,6 @@ class MeController {
       });
 
     let user = await UserModel.findOne({ _id: req.payload.id });
-    if (!user) return res.status(404).send({ error: 'user-not-found' });
 
     if (!user.validatePassword(oldPassword))
       return res.status(422).send({
@@ -180,7 +169,7 @@ class MeController {
       await user.save();
       return res.status(200).send({ message: 'update-password-success' });
     } catch (error) {
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -202,7 +191,7 @@ class MeController {
       return res.status(200).send({ message: 'user-logout-success' });
     } catch (error) {
       console.log(error);
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 }

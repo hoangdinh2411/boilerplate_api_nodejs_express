@@ -1,0 +1,15 @@
+  {
+    "compilerOptions": {
+      // "checkJs": true,
+      "module": "esnext",
+      "target": "esnext",
+      // "moduleResolution": "node",
+      "baseUrl": ".",
+      "paths": {
+        "~/*": ["src/*"],
+        "@v1/*": ["src/api/v1/*"]
+      }
+    },
+    "exclude": ["node_modules", "**/node_modules/*"],
+    "include": ["./src/**/*"]
+  }

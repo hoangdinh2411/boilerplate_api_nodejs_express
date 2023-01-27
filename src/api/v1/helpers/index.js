@@ -11,7 +11,6 @@ module.exports = {
       admin: process.env.JWT_SECRET_ADMIN,
     };
     jwt.verify(token, optionSecret[type], async function (err, decoded) {
-      console.log('🚀 ~ file: helper-module.js:14 ~ err, decoded', err, decoded);
       if (err) {
         result = { payload: null, err };
       } else {

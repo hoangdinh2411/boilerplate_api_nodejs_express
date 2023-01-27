@@ -4,9 +4,11 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
+const morgan = require('morgan');
 const createError = require('http-errors');
 const db = require('~/config/db/mongo-connect');
 const redis = require('~/config/db/redis-connect');
+const { logEvent } = require('~/plugins/helper-plugin');
 
 // cải thiện hiệu năng
 // const os = require("os");
@@ -22,15 +24,11 @@ const port = process.env.PORT;
 db.connect();
 redis.connect();
 
-redis.client.set('name', 'khoitadev');
-
-redis.client.get('name', (err, result) => {
-  console.log('result::', result);
-});
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
+app.use(morgan(':date[clf] :method :url :status :res[content-length] - :response-time ms'));
 app.use(
   compression({
     level: 6,
@@ -38,6 +36,7 @@ app.use(
     // filter: (req, res) => {},
   }),
 );
+
 const io = require('socket.io')(
   app.listen(port, async () => {
     // cronjobs.init();
@@ -80,11 +79,12 @@ app.use(function (req, res, next) {
   next();
 });
 
-app.use('/api/v1', require('@v1'));
+app.use('/api', require('~/api'));
 app.use(function (req, res, next) {
   next(createError.NotFound('This router does not exist.'));
 });
 app.use(function (err, req, res, next) {
+  logEvent(`user_id:${req.payload?.id} --> ${req.method}:${req.url} --> err:${err.message}`);
   let status = err.status || 500;
   return res.status(status || 500).json({
     status: status || 500,

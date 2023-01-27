@@ -21,7 +21,7 @@ class VerifyController {
       let now = Math.round(new Date().getTime() / 1000);
       let difference = now - log.createdTime;
       let minutes = Math.round(difference / 60);
-      if (minutes < 2) return res.status(400).send({ error: 'request-time-exist' });
+      if (minutes < 2) return res.status(422).send({ error: 'request-time-exist' });
     }
     let email = new emailModule('verification_email', user.language, user.email);
     let path = `${process.env.DOMAIN}/verified/email?code=${Helper.secretSHA256(

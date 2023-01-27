@@ -86,7 +86,7 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ email: 1, phone: 1 }, { unique: true });
 
 userSchema.methods.setPassword = function (password) {
-  this.password = bcrypt.hashSync(password, 10);
+  this.password = bcrypt.hashSync(password, 8);
 };
 
 userSchema.methods.validatePassword = function (password) {
@@ -94,20 +94,7 @@ userSchema.methods.validatePassword = function (password) {
 };
 
 userSchema.methods.passwordEncryption = function (password) {
-  return bcrypt.hashSync(password, 10);
-};
-userSchema.methods.generateJWT = function (member = false) {
-  let expiresIn = '2d';
-  if (member) expiresIn = '365d';
-
-  const payload = {
-    email: this.email,
-    id: this._id,
-  };
-  const secret = process.env.JWT_SECRET;
-  const options = { expiresIn };
-  const token = jwt.sign(payload, secret, options);
-  return token;
+  return bcrypt.hashSync(password, 8);
 };
 
 userSchema.methods.jsonData = function () {
@@ -131,7 +118,7 @@ userSchema
   .virtual('updatePassword')
   .set(function (rawPass) {
     this._password = rawPass;
-    this.password = bcrypt.hashSync(rawPass, 10);
+    this.password = bcrypt.hashSync(rawPass, 8);
   })
   .get(function () {
     return this._password;

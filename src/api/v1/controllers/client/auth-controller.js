@@ -6,7 +6,7 @@ const SettingModel = require('@v1/models/setting-model');
 const LanguageModel = require('@v1/models/language-model');
 const firebaseModule = require('@v1/modules/firebase-module');
 const emailModule = require('@v1/modules/email-module');
-const helperModule = require('@v1/modules/helper-module');
+const helperModule = require('@v1/helpers');
 const { register, login } = require('@v1/validations/auth-validate');
 
 class AuthController {
@@ -36,15 +36,15 @@ class AuthController {
         })
         .catch((error) => {
           console.log(error);
-          return res.status(400).send({ error });
+          return next(createError.BadRequest(error.message));
         });
     } catch (error) {
       console.log(error);
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
-  static async login(req, res) {
+  static async login(req, res, next) {
     try {
       await login.validateAsync(req.body);
       let user = await UserModel.findOne({
@@ -53,7 +53,7 @@ class AuthController {
       if (!user || user.status === 'close')
         return res.status(404).send({ error: 'user-not-found' });
       if (!user.validatePassword(req.body.password))
-        return res.status(400).send({
+        return res.status(422).send({
           error: 'user-incorrect-password',
         });
 
@@ -77,8 +77,7 @@ class AuthController {
 
       return res.status(200).send(data);
     } catch (error) {
-      console.log(error);
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -149,7 +148,7 @@ class AuthController {
   //     return res.status(200).send(data);
   //   } catch (error) {
   //     console.log(error);
-  //     return res.status(400).send(error);
+  //     return next(createError.BadRequest(error.message));;
   //   }
   // }
 
@@ -224,7 +223,7 @@ class AuthController {
   //     return res.status(200).send(data);
   //   } catch (error) {
   //     console.log(error);
-  //     return res.status(400).send(error);
+  //     return next(createError.BadRequest(error.message));;
   //   }
   // }
 
@@ -298,7 +297,7 @@ class AuthController {
   //     return res.status(200).send(data);
   //   } catch (error) {
   //     console.log(error);
-  //     return res.status(400).send(error);
+  //     return next(createError.BadRequest(error.message));;
   //   }
   // }
 
@@ -317,7 +316,7 @@ class AuthController {
       return res.status(404).send({ error: 'Invalid request' });
     } catch (error) {
       console.log(error);
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 
@@ -330,7 +329,7 @@ class AuthController {
       return res.status(200).send({ message: 'user-phone-verified' });
     } catch (error) {
       console.log(error);
-      return res.status(400).send(error);
+      return next(createError.BadRequest(error.message));
     }
   }
 }

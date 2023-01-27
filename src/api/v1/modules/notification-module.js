@@ -71,7 +71,7 @@ class NotificationModule {
     let setting = {
       tokens,
       notification,
-      data: JSON.parse(JSON.stringify(action)),
+      data: structuredClone(action),
     };
 
     // if (image)
