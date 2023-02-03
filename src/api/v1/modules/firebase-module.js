@@ -1,6 +1,6 @@
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const serviceAccount = require(process.env.PATH_ADMIN_JSON);
+const serviceAccount = require('~/config/admin.json');
 
 class FirebaseModule {
   constructor() {

@@ -1,79 +1,45 @@
-const moment = require('moment');
 const otpGenerator = require('otp-generator');
 const OtpModel = require('@v1/models/otp-model');
-const UserModel = require('@v1/models/user-model');
 
 class OtpModule {
-  static async generatorForgotPassword(user) {
-    let now = moment().utc();
-    let start = moment().add(-10, 'minutes').utc();
+  static async generatorForgotPassword({ email, phone, type }) {
+    let options = {
+      type,
+    };
+    email && (options.email = email);
+    phone && (options.phone = phone);
 
-    let exist = await OtpModel.findOne({
-      targetId: user._id,
-      targetName: 'User',
-      type: 'forgot-password',
-      createdTime: {
-        $gte: start.unix(),
-        $lte: now.unix(),
-      },
-    }).sort({
-      createdTime: -1,
-    });
-
-    if (exist && exist.status === 'new')
+    let exist = await OtpModel.findOne(options);
+    if (exist)
       return {
         status: 'exist',
         otp: exist,
       };
-    else {
-      let otp = otpGenerator.generate(6, {
-        upperCaseAlphabets: false,
-        specialChars: false,
-        lowerCaseAlphabets: false,
-      });
-      let newOtp = await OtpModel.create({
-        targetId: user._id,
-        targetName: 'User',
-        type: 'forgot-password',
-        code: otp,
-        createdTime: moment().utc().unix(),
-      });
 
-      await UserModel.findOneAndUpdate(
-        { _id: user._id },
-        {
-          $inc: { countForgotPassword: 1 },
-        },
-      );
-
-      return {
-        status: 'new',
-        otp: newOtp,
-      };
-    }
-  }
-  static async verify(code, type, targetId, targetName) {
-    let now = moment().utc();
-    let start = moment().add(-10, 'minutes').utc();
-
-    let exist = await OtpModel.findOneAndUpdate(
-      {
-        code: code,
-        status: 'new',
-        targetId,
-        targetName,
-        type,
-        createdTime: {
-          $gte: start.unix(),
-          $lte: now.unix(),
-        },
-      },
-      { status: 'used' },
-    ).sort({
-      createdTime: -1,
+    let otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      specialChars: false,
+      lowerCaseAlphabets: false,
     });
+    options.code = otp;
+    let newOtp = await OtpModel.create(options);
+    return {
+      status: 'new',
+      otp: newOtp,
+    };
+  }
+  static async verify({ code, type, email, phone }) {
+    let options = {
+      type,
+    };
+    email && (options.email = email);
+    phone && (options.phone = phone);
 
-    if (exist) return true;
+    let exist = await OtpModel.findOne(options);
+    if (exist) {
+      await OtpModel.deleteOne(options);
+      return bcrypt.compareSync(code, exist.code);
+    }
     return false;
   }
 }

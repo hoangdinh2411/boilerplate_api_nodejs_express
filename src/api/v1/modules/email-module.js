@@ -11,31 +11,27 @@ class EmailModule {
     this.mailGun = mailGun;
     this.to = to;
   }
-  async send_email(
-    { pathVerifyEmail, codeForgotPassword, email, fullName, appointmentTitle, amount },
-    callback,
-  ) {
+
+  async send_email({ codeForgotPassword, email, fullName, amount, codeOtp }, callback) {
     let template = await EmailTemplate.findOne({
       keyword: this.keyword,
     });
 
     let { from, subject, body } = template.contents.find((c) => c.language === this.language);
     subject = this.replaceContent(subject, {
-      pathVerifyEmail,
       codeForgotPassword,
       email,
       fullName,
-      appointmentTitle,
       amount,
+      codeOtp,
     });
 
     body = this.replaceContent(body, {
-      pathVerifyEmail,
       codeForgotPassword,
       email,
       fullName,
-      appointmentTitle,
       amount,
+      codeOtp,
     });
     return await this.mailGun.messages().send(
       {
@@ -50,33 +46,23 @@ class EmailModule {
       },
     );
   }
-  replaceContent(
-    content,
-    { pathVerifyEmail, codeForgotPassword, email, fullName, appointmentTitle, amount },
-  ) {
+
+  replaceContent(content, { codeForgotPassword, email, fullName, codeOtp, amount }) {
     return content.replace(/{{([^{}]+)}}/g, function (keyExpr, key) {
       switch (key) {
-        case 'pathVerifyEmail':
-          return pathVerifyEmail;
-          break;
-        case 'codeForgotPassword':
+        case 'CODE_FORGOT_PASSWORD':
           return codeForgotPassword;
-          break;
-        case 'fullName':
+        case 'CODE_OTP':
+          return codeOtp;
+        case 'FULL_NAME':
           return fullName;
-          break;
         case 'EMAIL':
           return email;
-          break;
-        case 'appointmentTitle':
-          return appointmentTitle;
-          break;
         case 'AMOUNT':
           return new Intl.NumberFormat('de-DE', {
             style: 'currency',
             currency: 'VND',
           }).format(amount);
-          break;
       }
     });
   }

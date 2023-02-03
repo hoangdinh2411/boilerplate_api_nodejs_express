@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-const redisMiddleware = require('@v1/middleware/redis-middleware');
+const redisMiddleware = require('~/api/v1/middlewares/redis-middleware');
 
 app.use(redisMiddleware);
 require('@v1/routers/index')(app);

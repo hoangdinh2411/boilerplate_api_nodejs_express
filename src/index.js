@@ -6,9 +6,8 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const createError = require('http-errors');
-const db = require('~/config/db/mongo-connect');
-const redis = require('~/config/db/redis-connect');
-const { logEvent } = require('~/plugins/helper-plugin');
+const db = require('~/api/database/mongo-connect');
+const { logEvent } = require('@v1/helpers/log');
 
 // cải thiện hiệu năng
 // const os = require("os");
@@ -17,12 +16,10 @@ const { logEvent } = require('~/plugins/helper-plugin');
 global.appRoot = path.resolve(__dirname);
 
 require('dotenv').config();
+require('~/api/database/redis-connect');
 
 const app = express();
 const port = process.env.PORT;
-
-db.connect();
-redis.connect();
 
 app.use(cors());
 app.use(express.json());
@@ -33,14 +30,15 @@ app.use(
   compression({
     level: 6,
     threshold: 100 * 1000,
-    // filter: (req, res) => {},
+    // filter: (req, res, next) => {},
   }),
 );
 
 const io = require('socket.io')(
   app.listen(port, async () => {
+    await db.connect();
     // cronjobs.init();
-    console.log('RESTful API server started on: ' + port);
+    console.log('RESTFUL API server started on: ' + port);
   }),
   {
     serveClient: false,
@@ -86,9 +84,10 @@ app.use(function (req, res, next) {
 app.use(function (err, req, res, next) {
   logEvent(`user_id:${req.payload?.id} --> ${req.method}:${req.url} --> err:${err.message}`);
   let status = err.status || 500;
-  return res.status(status || 500).json({
-    status: status || 500,
+  return res.status(status).json({
+    status,
     error: err.message,
   });
 });
+
 module.exports = app;

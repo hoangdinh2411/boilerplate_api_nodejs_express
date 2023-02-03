@@ -4,11 +4,11 @@ const createError = require('http-errors');
 const { promisify } = require('util');
 const rimraf = require('rimraf');
 const { cloudinary } = require('~/plugins/upload-plugin');
-const Helper = require('~/plugins/helper-plugin');
+const Helper = require('@v1/helpers/index');
 const MediaModel = require('@v1/models/media-model');
 
 class MediaController {
-  static async upload(req, res) {
+  static async upload(req, res, next) {
     try {
       let result = [];
       await Promise.all(
@@ -52,12 +52,12 @@ class MediaController {
       fs.rmdirSync(tmp);
       return res.status(200).send(result.length > 1 ? result : result[0]);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return next(createError.BadRequest(error.message));
     }
   }
 
-  // static async cloudSingle(req, res) {
+  // static async cloudSingle(req, res, next) {
   //   try {
   //     let reg = new RegExp(`/upload/(v[0-9]+)/(${req.file.filename}.*)`);
   //     let regExec = reg.exec(req.file.path);
@@ -76,7 +76,7 @@ class MediaController {
   //       size: media.size,
   //     });
   //   } catch (error) {
-  //     console.log(error);
+  //     console.error(error);
   //     return next(createError.BadRequest(error.message));
   //   }
   // }

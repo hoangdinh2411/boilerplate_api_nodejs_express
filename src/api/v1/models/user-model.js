@@ -79,14 +79,14 @@ const userSchema = new mongoose.Schema({
   status: {
     type: String,
     required: false,
-    default: 'new', //close
+    default: 'active', //close
   },
 });
 
 userSchema.index({ email: 1, phone: 1 }, { unique: true });
 
 userSchema.methods.setPassword = function (password) {
-  this.password = bcrypt.hashSync(password, 8);
+  this.password = bcrypt.hashSync(password, 10);
 };
 
 userSchema.methods.validatePassword = function (password) {
@@ -94,7 +94,7 @@ userSchema.methods.validatePassword = function (password) {
 };
 
 userSchema.methods.passwordEncryption = function (password) {
-  return bcrypt.hashSync(password, 8);
+  return bcrypt.hashSync(password, 10);
 };
 
 userSchema.methods.jsonData = function () {
@@ -118,7 +118,7 @@ userSchema
   .virtual('updatePassword')
   .set(function (rawPass) {
     this._password = rawPass;
-    this.password = bcrypt.hashSync(rawPass, 8);
+    this.password = bcrypt.hashSync(rawPass, 10);
   })
   .get(function () {
     return this._password;

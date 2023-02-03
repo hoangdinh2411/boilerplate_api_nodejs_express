@@ -1,61 +1,81 @@
-const Helper = require('~/plugins/helper-plugin');
+const createError = require('http-errors');
+const EmailModule = require('@v1/modules/email-module');
+const OtpModule = require('@v1/modules/otp-module');
 const UserModel = require('@v1/models/user-model');
-const emailModule = require('@v1/modules/email-module');
 const ProcessLogModel = require('@v1/models/process-log-model');
 
 class VerifyController {
-  static async email(req, res) {
-    let user = await UserModel.findOne({ _id: req.payload.id });
-    if (!user) return res.status(404).send({ error: 'user-not-found' });
+  static async email(req, res, next) {
+    try {
+      let { email: emailUser } = req.query;
 
-    if (user.emailVerified) return res.status(422).send({ error: 'email-verified' });
+      if (emailUser) {
+        let user_exits = await UserModel.findOne({ email: emailUser.trim().toLowerCase() });
+        if (user_exits) return res.status(422).send({ error: 'email-registered' });
+      }
 
-    let log = await ProcessLogModel.findOne({
-      createdBy: req.payload.id,
-      type: 'email-verify',
-    }).sort({
-      createdAt: -1,
-    });
+      let user = await UserModel.findOne({ _id: req.payload.id });
+      if (user.emailVerified) return res.status(422).send({ error: 'email-verified' });
 
-    if (log) {
-      let now = Math.round(new Date().getTime() / 1000);
-      let difference = now - log.createdTime;
-      let minutes = Math.round(difference / 60);
-      if (minutes < 2) return res.status(422).send({ error: 'request-time-exist' });
+      let generator = await OtpModule.generatorForgotPassword({
+        email: emailUser.trim().toLowerCase(),
+        type: 'email-verify',
+      });
+      if (generator.status === 'new') {
+        let email = new EmailModule(
+          'verification_email',
+          user.language.locale,
+          user.email || emailUser,
+        );
+
+        await email.send_email(
+          {
+            full_name: user.fullName,
+            email: user.email || emailUser,
+            code_otp: generator.otp.code,
+          },
+          async () => {
+            await ProcessLogModel.create({
+              created_by: req.payload.id,
+              type: 'email-verify',
+            });
+          },
+        );
+      }
+      return res.status(200).send({ message: 'send-email-success' });
+    } catch (error) {
+      console.error(error);
+      return next(createError.BadRequest(error.message));
     }
-    let email = new emailModule('verification_email', user.language, user.email);
-    let path = `${process.env.DOMAIN}/verified/email?code=${Helper.secretSHA256(
-      user._id.toString(),
-    )}`;
-
-    email.send_email(
-      {
-        fullName: user.fullName,
-        email: user.email,
-        pathVerifyEmail: path,
-      },
-      async () => {
-        await ProcessLogModel.create({
-          createdBy: req.payload.id,
-          type: 'email-verify',
-        });
-      },
-    );
-    return res.status(200).send({ message: 'send-email-success' });
   }
 
-  static async verifyEmail(req, res) {
-    let codeVerify = Helper.secretSHA256(req.payload.id);
-    if (req.query.code !== codeVerify) return res.status(422).send({ error: 'code-not-verify' });
+  static async verifyEmail(req, res, next) {
+    try {
+      let { code, isRegister = false } = req.body;
+      let user = await UserModel.findOne({ _id: req.payload.id });
+      let status = await OtpModule.verify({ code, type: 'email-verify', email: user.email });
+      if (!status) return res.status(422).send({ error: 'code-not-verify' });
 
-    let user = await UserModel.findOne({ _id: req.payload.id });
-    if (!user) return res.status(404).send({ error: 'user-not-found' });
+      await UserModel.findOneAndUpdate(
+        { _id: req.payload.id },
+        {
+          emailVerified: true,
+        },
+      );
 
-    await UserModel.findOneAndUpdate({
-      emailVerified: true,
-    });
+      if (isRegister) {
+        let email = new EmailModule('register_account', 'vi', user.email);
+        await email.send_email({
+          full_name: user.fullName,
+          email: user.email,
+        });
+      }
 
-    return res.status(200).send({ message: 'verified-email-success' });
+      return res.status(200).send({ message: 'verified-email-success' });
+    } catch (error) {
+      console.error(error);
+      return next(createError.BadRequest(error.message));
+    }
   }
 }
 

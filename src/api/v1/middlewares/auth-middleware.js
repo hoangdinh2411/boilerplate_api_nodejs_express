@@ -1,6 +1,7 @@
 const createError = require('http-errors');
-const helperModule = require('@v1/helpers');
+const helperModule = require('~/api/v1/helpers/auth');
 const UserModel = require('@v1/models/user-model');
+const TokenLogModel = require('@v1/models/token-log-model');
 
 const getTokenFromHeaders = (req) => {
   const {
@@ -28,7 +29,7 @@ const auth = {
   optional: async function (req, res, next) {
     let token = getTokenFromHeaders(req);
     if (token) {
-      let { payload, err } = helperModule.validateToken(token, 'token');
+      let { payload, err } = helperModule.validateToken({ token, type: 'token' });
       if (err) return next(createError.Unauthorized(err.message));
       let user = await validateAccount(payload.id);
       if (!user) return next(createError.NotFound('user-not-found'));
@@ -39,7 +40,7 @@ const auth = {
   admin: async function (req, res, next) {
     let token = getTokenFromHeaders(req);
     if (!token) throw new Error(createError.Unauthorized());
-    let { payload, err } = helperModule.validateToken(token, 'admin');
+    let { payload, err } = helperModule.validateToken({ token, type: 'admin' });
     if (err) return next(createError.Unauthorized(err.message));
     let user = await validateAccount(payload.id);
     if (!user) return next(createError.NotFound('user-not-found'));
@@ -49,9 +50,21 @@ const auth = {
   user: async function (req, res, next) {
     let token = getTokenFromHeaders(req);
     if (!token) throw new Error(createError.Unauthorized());
-    let { payload, err } = helperModule.validateToken(token, 'token');
+    let { payload, err } = helperModule.validateToken({ token, type: 'token' });
     if (err) return next(createError.Unauthorized(err.message));
-    let user = (req.payload = payload);
+    let user = await validateAccount(payload.id);
+    if (!user) return next(createError.NotFound('user-not-found'));
+    let options = {
+      userId: payload.id,
+    };
+    payload.time && (options.time = payload.time);
+
+    let check_token_log = await TokenLogModel.findOne(options).sort({
+      createdAt: -1,
+    });
+    if (check_token_log && (!payload.time || !check_token_log.status))
+      return next(createError.Unauthorized());
+    req.payload = payload;
     next();
   },
 };

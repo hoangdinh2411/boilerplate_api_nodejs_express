@@ -1,8 +1,9 @@
-const middlewareAuth = require('@v1/middleware/auth-middleware');
+const middlewareAuth = require('~/api/v1/middlewares/auth-middleware');
 const adminInit = require('@v1/routers/admin/admin-router');
 const adminRouter = require('@v1/routers/admin');
 const userRouter = require('@v1/routers/user');
 const clientRouter = require('@v1/routers/client');
+
 module.exports = function (app) {
   // Admin
   app.use('/admin', adminInit);

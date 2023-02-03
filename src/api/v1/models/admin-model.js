@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const helperModule = require('@v1/helpers');
+const helperModule = require('~/api/v1/helpers/auth');
 
 const adminSchema = new mongoose.Schema({
   name: {
@@ -27,7 +27,7 @@ const adminSchema = new mongoose.Schema({
 });
 
 adminSchema.methods.setPassword = function (password) {
-  this.password = bcrypt.hashSync(password, 8);
+  this.password = bcrypt.hashSync(password, 10);
 };
 
 adminSchema.methods.validatePassword = function (password) {
@@ -35,19 +35,19 @@ adminSchema.methods.validatePassword = function (password) {
 };
 
 adminSchema.methods.passwordEncryption = function (password) {
-  return bcrypt.hashSync(password, 8);
+  return bcrypt.hashSync(password, 10);
 };
 
-adminSchema.methods.jsonData = function (member = false) {
+adminSchema.methods.jsonData = function (remember = false) {
   return {
     _id: this._id,
     username: this.username,
     name: this.name,
-    token: helperModule.generateToken(
-      { id: this._id, username: this.username, role: this.role },
-      member,
-      'admin',
-    ),
+    token: helperModule.generateToken({
+      payload: { id: this._id, username: this.username, role: this.role },
+      remember,
+      type: 'admin',
+    }),
     role: this.role,
   };
 };

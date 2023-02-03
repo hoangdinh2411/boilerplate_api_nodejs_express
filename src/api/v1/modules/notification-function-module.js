@@ -8,7 +8,6 @@ module.exports = {
         keyword: key,
         status: 'active',
       });
-
       if (!template) return;
 
       let { contents } = JSON.parse(JSON.stringify(template));
@@ -28,29 +27,23 @@ module.exports = {
         action,
       });
     } catch (error) {
-      console.log('send now error');
-      return;
+      console.error('send notify error : ', error);
     }
-
     return;
   },
-
   replaceContent: function (content, { fullName, email, amount }) {
     if (!content) return '';
     return content.replace(/{{([^{}]+)}}/g, (keyExpr, key) => {
       switch (key) {
-        case 'fullName':
+        case 'FULL_NAME':
           return fullName;
-          break;
         case 'EMAIL':
           return email;
-          break;
         case 'AMOUNT':
           return new Intl.NumberFormat('de-DE', {
             style: 'currency',
             currency: 'VND',
           }).format(amount);
-          break;
       }
     });
   },

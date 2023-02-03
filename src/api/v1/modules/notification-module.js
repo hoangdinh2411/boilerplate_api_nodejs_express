@@ -1,17 +1,14 @@
 const firebaseAdmin = require('firebase-admin');
 const NotificationTopicModel = require('@v1/models/notification-topic-model');
 const NotificationTopicDeviceModel = require('@v1/models/notification-topic-device-model');
+const UserModel = require('@v1/models/user-model');
 const UserDeviceModel = require('@v1/models/user-device-model');
 const NotificationTopicUserModel = require('@v1/models/notification-topic-user-model');
 const NotificationPermissionModel = require('@v1/models/notification-permission-model');
-
-require('dotenv').config({
-  path: './.env',
-});
+const serviceAccount = require('~/config/admin.json');
 
 class NotificationModule {
   constructor() {
-    const serviceAccount = require(process.env.PATH_ADMIN_JSON);
     if (firebaseAdmin.apps.length === 0)
       firebaseAdmin.initializeApp({
         credential: firebaseAdmin.credential.cert(serviceAccount),
@@ -23,7 +20,7 @@ class NotificationModule {
     let setting = {
       condition,
       notification,
-      data: action,
+      data: structuredClone(action),
     };
 
     // if (image)
@@ -33,6 +30,7 @@ class NotificationModule {
         notification: {
           // imageUrl: image,
           sound: 'default',
+          default_sound: true,
         },
       },
       apns: {
@@ -40,6 +38,7 @@ class NotificationModule {
           aps: {
             'mutable-content': 1,
             sound: 'default',
+            default_sound: true,
           },
         },
         // fcm_options: {
@@ -53,18 +52,14 @@ class NotificationModule {
       },
     };
 
-    try {
-      this.fcm
-        .send(setting)
-        .then((res) => {
-          console.log('sendMessageCondition success : ');
-        })
-        .catch((error) => {
-          console.log('sendMessageCondition error : ');
-        });
-    } catch (error) {
-      console.log('sendMessageCondition error: ');
-    }
+    this.fcm
+      .send(setting)
+      .then((res) => {
+        console.log('sendMessageCondition success : ');
+      })
+      .catch((error) => {
+        console.log('sendMessageCondition error : ', error);
+      });
   }
 
   async sendMessageMulticast(tokens, notification, action, image) {
@@ -81,6 +76,7 @@ class NotificationModule {
         notification: {
           // imageUrl: image,
           sound: 'default',
+          default_sound: true,
         },
       },
       apns: {
@@ -88,6 +84,7 @@ class NotificationModule {
           aps: {
             'mutable-content': 1,
             sound: 'default',
+            default_sound: true,
           },
         },
         // fcm_options: {
@@ -101,18 +98,15 @@ class NotificationModule {
       },
     };
 
-    try {
+    tokens.length &&
       this.fcm
         .sendMulticast(setting)
         .then((res) => {
           console.log('sendMessageMulticast success : ');
         })
         .catch((error) => {
-          console.log('sendMessageMulticast error : ');
+          console.log('sendMessageMulticast error : ', error);
         });
-    } catch (error) {
-      console.log('sendMessageMulticast error: ');
-    }
   }
 
   async sendMessageTopic({ name, notification, action, image }) {
@@ -129,6 +123,7 @@ class NotificationModule {
         notification: {
           // imageUrl: image,
           sound: 'default',
+          default_sound: true,
         },
       },
       apns: {
@@ -136,6 +131,7 @@ class NotificationModule {
           aps: {
             'mutable-content': 1,
             sound: 'default',
+            default_sound: true,
           },
         },
         // fcm_options: {
@@ -149,18 +145,14 @@ class NotificationModule {
       },
     };
 
-    try {
-      this.fcm
-        .send(setting)
-        .then((res) => {
-          console.log('sendMessage success : ');
-        })
-        .catch((error) => {
-          console.log('sendMessage error : ');
-        });
-    } catch (error) {
-      console.log('sendMessage error : ');
-    }
+    this.fcm
+      .send(setting)
+      .then((res) => {
+        console.log('sendMessage success : ');
+      })
+      .catch((error) => {
+        console.log('sendMessage error : ', error);
+      });
   }
 
   async sendMessageAll(notification, action, image = null) {
@@ -200,22 +192,10 @@ class NotificationModule {
     } while (length === limit);
   }
 
-  // Đăng ký 1 thiết bị với topic all
-  async registerTopicAll(userDevice) {
-    let topicAll = await NotificationTopicModel.findOne({
-      name: 'all_device',
-      status: 2,
-      type: 1,
-    });
-
-    if (!topicAll)
-      topicAll = await NotificationTopicModel.create({
-        name: 'all_device',
-        status: 2,
-        type: 1,
-      });
-
-    await this.registerTopic(userDevice, topicAll);
+  // Đăng ký 1 thiết bị với topic by name
+  async registerTopicByName(userDevice, name) {
+    let topicByName = await this.saveTopicByName(name);
+    await this.registerTopic(userDevice, topicByName);
   }
 
   // user tăt thông báoz
@@ -288,7 +268,7 @@ class NotificationModule {
       await Promise.all(
         devices.map(async (device) => {
           // đăng ký với topic all.
-          await this.registerTopicAll(device);
+          await this.registerTopicByName(device, 'all_device');
 
           // Tìm kiếm các topic seller được đăng ký.
           await this.registerDeviceUserOld(device);
@@ -309,7 +289,7 @@ class NotificationModule {
     do {
       let skip = page * limit - limit;
       let topicSellers = await NotificationTopicUserModel.find({
-        userId: userDevice.userId,
+        userId: UserDeviceModel.userId,
       })
         .limit(limit)
         .skip(skip)
@@ -384,7 +364,7 @@ class NotificationModule {
       for (let i = 0; i < topics.length; i++) {
         let __t = topics[i];
         let topicRegister = await NotificationTopicDeviceModel.findOne({
-          userDeviceId: userDevice._id,
+          userDeviceId: UserDeviceModel._id,
           notificationTopicId: __t._id,
         });
 
@@ -411,7 +391,6 @@ class NotificationModule {
 
     if (!register) {
       if (!sub) sub = await this.createTopicMap(topic);
-
       await this.subscribeToTopic(sub, userDevice);
     }
   }
@@ -424,7 +403,7 @@ class NotificationModule {
     do {
       let skip = page * limit - limit;
       let devices = await NotificationTopicDeviceModel.find({
-        userDeviceId: userDevice._id,
+        userDeviceId: UserDeviceModel._id,
       })
         .limit(limit)
         .skip(skip)
@@ -547,9 +526,15 @@ class NotificationModule {
                 await Promise.all(
                   notificationTopics.map(async (t) => {
                     if (!topics.includes(t.name)) topics.push(t.name);
-                    let topicDevices = await NotificationTopicDeviceModel.find({
+
+                    let options = {
                       notificationTopicId: t._id,
-                    })
+                    };
+                    if (action.userNotSend) {
+                      options.userId = action.userNotSend;
+                    }
+
+                    let topicDevices = await NotificationTopicDeviceModel.find(options)
                       .limit(999)
                       .skip(0);
                     for (let i = 0; i < topicDevices.length; i++) {
@@ -584,6 +569,12 @@ class NotificationModule {
           break;
         case 'users':
           let devices = [];
+          let user = await UserModel.findOne({ _id: params[0] }).populate('language');
+          if (user)
+            content = contents.find((c) => {
+              return c.language === user.language.locale;
+            });
+
           await Promise.all(
             params.map(async (userId) => {
               await this.createPermission(_id, userId, type);
@@ -624,11 +615,10 @@ class NotificationModule {
             action,
             content.image,
           );
-
           break;
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
     }
   }
 
@@ -639,7 +629,7 @@ class NotificationModule {
       limit = 100;
     do {
       let skip = page * limit - limit;
-      let devices = await UserDevice.find({
+      let devices = await UserDeviceModel.find({
         userId: user._id,
       })
         .limit(limit)
@@ -665,7 +655,7 @@ class NotificationModule {
       limit = 100;
     do {
       let skip = page * limit - limit;
-      let devices = await UserDevice.find({
+      let devices = await UserDeviceModel.find({
         userId: user._id,
       })
         .limit(limit)
@@ -683,6 +673,39 @@ class NotificationModule {
       page++;
       length = devices.length;
     } while (length === limit);
+    await NotificationTopicUserModel.deleteOne({
+      notificationTopicId: topic._id,
+      userId: user._id,
+    });
+  }
+
+  async saveTopicByName(name) {
+    let topicByName = await NotificationTopicModel.findOne({
+      name,
+      status: 2,
+      type: 1,
+    });
+
+    if (!topicByName)
+      topicByName = await NotificationTopicModel.create({
+        name,
+        status: 2,
+        type: 1,
+      });
+    return topicByName;
+  }
+
+  async saveTopicUser(user, topic) {
+    let topicUser = await NotificationTopicUserModel.findOne({
+      notificationTopicId: topic._id,
+      userId: user._id,
+    });
+
+    if (!topicUser)
+      topicUser = await NotificationTopicUserModel.create({
+        notificationTopicId: topic._id,
+        userId: user._id,
+      });
   }
 }
 

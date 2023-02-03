@@ -5,12 +5,12 @@ const UserModel = require('@v1/models/user-model');
 const SettingModel = require('@v1/models/setting-model');
 const LanguageModel = require('@v1/models/language-model');
 const firebaseModule = require('@v1/modules/firebase-module');
-const emailModule = require('@v1/modules/email-module');
-const helperModule = require('@v1/helpers');
+const EmailModule = require('@v1/modules/email-module');
+const helperModule = require('~/api/v1/helpers/auth');
 const { register, login } = require('@v1/validations/auth-validate');
 
 class AuthController {
-  static async register(req, res) {
+  static async register(req, res, next) {
     try {
       let userExits = await UserModel.findOne({
         email: req.body.email,
@@ -27,19 +27,31 @@ class AuthController {
       return user
         .save()
         .then(async (data) => {
-          // let email = new emailModule('register_account', 'vi', req.body.email);
-          // await email.send_email({
-          //   fullName: req.body.fullName,
-          //   email: req.body.email,
-          // });
-          return res.status(200).send({ fullName: req.body.fullName, email: req.body.email });
+          let token = await helperModule.generateToken({
+            payload: { id: data._id, email: data.email },
+            remember: req.body.remember,
+            type: 'token',
+          });
+
+          let refreshToken = await helperModule.generateToken({
+            payload: {
+              id: data._id,
+              email: data.email,
+            },
+            remember: false,
+            type: 'refresh',
+          });
+
+          return res
+            .status(200)
+            .send({ fullName: data.fullName, email: data.email, token, refreshToken });
         })
         .catch((error) => {
-          console.log(error);
+          console.error(error);
           return next(createError.BadRequest(error.message));
         });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return next(createError.BadRequest(error.message));
     }
   }
@@ -50,6 +62,7 @@ class AuthController {
       let user = await UserModel.findOne({
         email: sanitize(req.body.email),
       });
+
       if (!user || user.status === 'close')
         return res.status(404).send({ error: 'user-not-found' });
       if (!user.validatePassword(req.body.password))
@@ -57,19 +70,20 @@ class AuthController {
           error: 'user-incorrect-password',
         });
 
-      let token = await helperModule.generateToken(
-        { id: user._id, email: user.email },
-        req.body.remember,
-        'token',
-      );
-      let refreshToken = await helperModule.generateToken(
-        {
+      let token = await helperModule.generateToken({
+        payload: { id: user._id, email: user.email },
+        remember: req.body.remember,
+        type: 'token',
+      });
+
+      let refreshToken = await helperModule.generateToken({
+        payload: {
           id: user._id,
           email: user.email,
         },
-        false,
-        'refresh',
-      );
+        remember: false,
+        type: 'refresh',
+      });
       let data = user.jsonData();
 
       data.token = token;
@@ -77,11 +91,12 @@ class AuthController {
 
       return res.status(200).send(data);
     } catch (error) {
+      console.error(error);
       return next(createError.BadRequest(error.message));
     }
   }
 
-  // static async loginFacebook(req, res) {
+  // static async loginFacebook(req, res, next) {
   //   let { accessToken } = req.body;
   //   if (!accessToken)
   //     return res.status(422).send({
@@ -115,14 +130,6 @@ class AuthController {
   //       let newUser = new UserModel(userData);
   //       newUser.setPassword(userData.password);
   //       user = await newUser.save();
-
-  //       if (user.email && setting.sendMail) {
-  //         let email = new emailModule('register_account', 'vi', userData.email);
-  //         await email.send_email({
-  //           fullName: userData.fullName,
-  //           email: userData.email,
-  //         });
-  //       }
   //     } else {
   //       let dataUpdate = {};
   //       !user.uid && (dataUpdate.uid = dataFacebook.user);
@@ -147,12 +154,12 @@ class AuthController {
   //     data.needOtp = setting.needOtp;
   //     return res.status(200).send(data);
   //   } catch (error) {
-  //     console.log(error);
+  //     console.error(error);
   //     return next(createError.BadRequest(error.message));;
   //   }
   // }
 
-  // static async loginApple(req, res) {
+  // static async loginApple(req, res, next) {
   //   let { dataLogin } = req.body;
   //   if (!dataLogin)
   //     return res.status(422).send({
@@ -190,13 +197,6 @@ class AuthController {
   //       newUser.setPassword(userData.password);
   //       user = await newUser.save();
 
-  //       if (user.email && setting.sendMail) {
-  //         let email = new emailModule('register_account', 'vi', userData.email);
-  //         await email.send_email({
-  //           fullName: userData.fullName,
-  //           email: userData.email,
-  //         });
-  //       }
   //     } else {
   //       let dataUpdate = {};
   //       !user.emailVerified && (dataUpdate.emailVerified = true);
@@ -222,12 +222,12 @@ class AuthController {
   //     data.needOtp = setting.needOtp;
   //     return res.status(200).send(data);
   //   } catch (error) {
-  //     console.log(error);
+  //     console.error(error);
   //     return next(createError.BadRequest(error.message));;
   //   }
   // }
 
-  // static async loginGoogle(req, res) {
+  // static async loginGoogle(req, res, next) {
   //   let { accessToken } = req.body;
   //   if (!accessToken)
   //     return res.status(422).send({
@@ -265,13 +265,6 @@ class AuthController {
   //       newUser.setPassword(userData.password);
   //       user = await newUser.save();
 
-  //       if (user.email && setting.sendMail) {
-  //         let email = new emailModule('register_account', 'vi', userData.email);
-  //         await email.send_email({
-  //           fullName: userData.fullName,
-  //           email: userData.email,
-  //         });
-  //       }
   //     } else {
   //       let dataUpdate = {};
   //       !user.emailVerified && (dataUpdate.emailVerified = true);
@@ -296,39 +289,43 @@ class AuthController {
   //     data.needOtp = setting.needOtp;
   //     return res.status(200).send(data);
   //   } catch (error) {
-  //     console.log(error);
+  //     console.error(error);
   //     return next(createError.BadRequest(error.message));;
   //   }
   // }
 
   static async token(req, res, next) {
-    let { refreshToken } = req.body;
-    if (!refreshToken) throw createError.BadRequest();
     try {
+      let { refreshToken } = req.body;
+      if (!refreshToken) throw createError.BadRequest();
       if (refreshToken) {
-        let { payload, err } = helperModule.validateToken(refreshToken, 'refresh');
+        let { payload, err } = helperModule.validateToken({ token: refreshToken, type: 'refresh' });
         if (err) return next(createError.Unauthorized(err.message));
-        let { id, email } = payload;
-        let token = await helperModule.generateToken({ id, email }, false, 'token');
+        let { email, id } = payload;
+        let token = await helperModule.generateToken({
+          payload: { email, id },
+          remember: false,
+          type: 'token',
+        });
 
         return res.status(200).json({ token });
       }
       return res.status(404).send({ error: 'Invalid request' });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return next(createError.BadRequest(error.message));
     }
   }
 
-  static async phone(req, res) {
-    let { uid, phone } = req.body;
+  static async phone(req, res, next) {
     try {
+      let { uid, phone } = req.body;
       let user = await firebaseModule.getUserPhone({ uid, phone });
       if (!user) return res.status(404).send({ error: 'user-phone-not-found' });
 
       return res.status(200).send({ message: 'user-phone-verified' });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return next(createError.BadRequest(error.message));
     }
   }

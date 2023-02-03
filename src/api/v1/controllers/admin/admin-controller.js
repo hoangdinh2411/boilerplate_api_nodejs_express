@@ -26,26 +26,32 @@ class AdminController {
     );
   }
 
-  static async createInit(req, res) {
-    let existed = await AdminModel.findOne({
-      username: process.env.ADMIN_ACCOUNT_EMAIL,
-    });
-    if (existed) return res.status(422).json({ error: 'username-exists' });
-    let newAdmin = new AdminModel({
-      username: process.env.ADMIN_ACCOUNT_EMAIL,
-      name: 'Admin',
-      password: process.env.ADMIN_ACCOUNT_PASS,
-      status: 1,
-      role: 'superadmin',
-    });
-    newAdmin.setPassword(process.env.ADMIN_ACCOUNT_PASS);
-
-    return newAdmin
-      .save()
-      .then(() => res.json({ name: process.env.ADMIN_ACCOUNT_EMAIL }))
-      .catch((error) => {
-        console.log(error);
+  static async createInit(req, res, next) {
+    try {
+      let existed = await AdminModel.findOne({
+        username: process.env.ADMIN_ACCOUNT_EMAIL,
       });
+      if (existed) return res.status(422).json({ error: 'username-exists' });
+      let newAdmin = new AdminModel({
+        username: process.env.ADMIN_ACCOUNT_EMAIL,
+        name: 'Admin',
+        password: process.env.ADMIN_ACCOUNT_PASS,
+        status: 1,
+        role: 'superadmin',
+      });
+      newAdmin.setPassword(process.env.ADMIN_ACCOUNT_PASS);
+
+      return newAdmin
+        .save()
+        .then(() => res.json({ name: process.env.ADMIN_ACCOUNT_EMAIL }))
+        .catch((error) => {
+          console.error(error);
+          return next(createError.BadRequest(error.message));
+        });
+    } catch (error) {
+      console.error(error);
+      return next(createError.BadRequest(error.message));
+    }
   }
 
   static async login(req, res, next) {

@@ -45,7 +45,7 @@ class CreditModule {
         );
         toStatus = 'success';
       } catch (error) {
-        console.log(error);
+        console.error(error);
         toStatus = 'to_process_error';
       }
     }
