@@ -2,7 +2,6 @@ const sanitize = require('mongo-sanitize');
 const createError = require('http-errors');
 const appleSigninAuth = require('apple-signin-auth');
 const UserModel = require('@v1/models/user-model');
-const SettingModel = require('@v1/models/setting-model');
 const LanguageModel = require('@v1/models/language-model');
 const firebaseModule = require('@v1/modules/firebase-module');
 const EmailModule = require('@v1/modules/email-module');
@@ -105,7 +104,7 @@ class AuthController {
     try {
       let { accessToken } = req.body;
       if (!accessToken) return next(createError.UnprocessableEntity('access-token-is-require'));
-      let setting = await SettingModel.findOne({});
+
       let dataFacebook = await Fetch.get({
         path: `https://graph.facebook.com/me?fields=email,name,picture&accessToken=${accessToken}`,
       });
@@ -172,7 +171,7 @@ class AuthController {
     try {
       let { dataLogin } = req.body;
       if (!dataLogin) return next(createError.UnprocessableEntity('data-login-is-require'));
-      let setting = await SettingModel.findOne({});
+
       let dataApple = await appleSigninAuth.verifyIdToken(dataLogin.identityToken, {
         nonce: dataLogin.nonce
           ? crypto.createHash('sha256').update(dataLogin.nonce).digest('hex')
@@ -250,7 +249,6 @@ class AuthController {
       });
       if (!dataGoogle.sub) return next(createError.UnprocessableEntity('google-login-failed'));
 
-      let setting = await SettingModel.findOne({});
       let user = await UserModel.findOne({
         $or: [{ email: dataGoogle.email }, { uid: dataGoogle.sub, typeLogin: 'google' }],
       });
