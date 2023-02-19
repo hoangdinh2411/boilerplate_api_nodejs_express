@@ -29,7 +29,7 @@ class MediaController {
           let data = await cloudinary.uploader.upload(file.path);
           let reg = new RegExp(`/upload/(v[0-9]+)/(${data.public_id}.*)`);
           let regExec = reg.exec(data.url);
-          let path = `${process.env.MEDIA_PUBLISH}/cloud/${process.env.CLOUD_NAME}/uid/${regExec[1]}/${regExec[2]}`;
+          let path = `${process.env.MEDIA_PUBLISH}/media/${process.env.CLOUD_NAME}/uid/${regExec[1]}/${regExec[2]}`;
           let media = await MediaModel.create({
             path,
             size: file.size,
@@ -46,10 +46,10 @@ class MediaController {
           });
         }),
       );
-      let tmp = `${appRoot}/public/media/cloud/${req.payload.id}-${Helper.getFolderNameByMonth()}`;
+      let tmp = `${__appRoot}/public/media/${req.payload.id}-${Helper.getFolderNameByMonth()}`;
       rimraf.sync(`${tmp}/*`);
       fs.rmdirSync(tmp);
-      return res.status(200).send(result.length > 1 ? result : result[0]);
+      return res.status(201).json(result.length > 1 ? result : result[0]);
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -61,14 +61,14 @@ class MediaController {
   //     let reg = new RegExp(`/upload/(v[0-9]+)/(${req.file.filename}.*)`);
   //     let regExec = reg.exec(req.file.path);
   //     let media = await MediaModel.create({
-  //       path: `${process.env.MEDIA_PUBLISH}/cloud/${process.env.CLOUD_NAME}/uid/${regExec[1]}/${regExec[2]}`,
+  //       path: `${process.env.MEDIA_PUBLISH}/media/${process.env.CLOUD_NAME}/uid/${regExec[1]}/${regExec[2]}`,
   //       size: req.file.size,
   //       mimetype: req.file.mimetype,
   //       name: req.file.filename,
-  //       created_by: req.payload.id,
+  //       createdBy: req.payload.id,
   //       uid: regExec[1],
   //     });
-  //     return res.status(200).send({
+  //     return res.status(201).json({
   //       path: media.path,
   //       mimetype: media.mimetype,
   //       name: media.name,

@@ -1,11 +1,12 @@
 const qs = require('qs');
+const Helper = require('@v1/helpers/index');
 class Fetch {
   static async get({ path, headers, params }) {
     try {
       headers = Object.assign({ 'Content-Type': 'application/json' }, headers);
       return (
         await fetch(`${path}${params ? `?${qs.stringify(params)}` : ''}`, {
-          method: 'get',
+          method: 'GET',
           headers: headers,
         })
       ).json();
@@ -17,11 +18,11 @@ class Fetch {
   static async post({ path, headers, data }) {
     try {
       let body = data;
-      if (typeof data === 'object') body = JSON.stringify(body);
+      if (Helper.typeValue(data) === 'Object') body = JSON.stringify(body);
       headers = Object.assign({ 'content-type': 'application/json' }, headers);
       return (
         await fetch(`${path}`, {
-          method: 'post',
+          method: 'POST',
           headers: headers,
           body: body,
         })
@@ -36,7 +37,7 @@ class Fetch {
       headers = Object.assign({ 'Content-Type': 'application/json' }, headers);
       return (
         await fetch(`${path}`, {
-          method: 'put',
+          method: 'PUT',
           headers: headers,
           body: JSON.stringify(data),
         })
@@ -51,7 +52,7 @@ class Fetch {
       headers = Object.assign({ 'Content-Type': 'application/json' }, headers);
       return (
         await fetch(`${path}`, {
-          method: 'patch',
+          method: 'PATCH',
           headers: headers,
           body: JSON.stringify(data),
         })

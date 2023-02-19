@@ -1,3 +1,4 @@
+const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
@@ -21,10 +22,7 @@ const storageSingle = new CloudinaryStorage({
 const storage = multer.diskStorage({
   destination: async function (req, file, cb) {
     try {
-      let fileDir = `${appRoot}/public/media/cloud/${
-        req.payload.id
-      }-${Helper.getFolderNameByMonth()}`;
-
+      let fileDir = `${__appRoot}/public/media/${req.payload.id}-${Helper.getFolderNameByMonth()}`;
       if (!fs.existsSync(fileDir)) {
         fs.mkdirSync(fileDir, { recursive: true });
       }

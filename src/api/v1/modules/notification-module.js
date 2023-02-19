@@ -299,10 +299,10 @@ class NotificationModule {
         });
 
       await Promise.all(
-        topicSellers.map(async (__t) => {
-          if (__t.notificationTopicId)
-            await this.registerTopic(userDevice, __t.notificationTopicId);
-          return __t;
+        topicSellers.map(async (topic) => {
+          if (topic.notificationTopicId)
+            await this.registerTopic(userDevice, topic.notificationTopicId);
+          return topic;
         }),
       );
 
@@ -361,11 +361,11 @@ class NotificationModule {
 
       let breakFor = false;
 
-      for (let i = 0; i < topics.length; i++) {
-        let __t = topics[i];
+      for (let i = 0, length = topics.length; i < length; i++) {
+        let topic = topics[i];
         let topicRegister = await NotificationTopicDeviceModel.findOne({
           userDeviceId: UserDeviceModel._id,
-          notificationTopicId: __t._id,
+          notificationTopicId: topic._id,
         });
 
         if (topicRegister) {
@@ -375,11 +375,11 @@ class NotificationModule {
         }
 
         let countDevice = await NotificationTopicDeviceModel.countDocuments({
-          notificationTopicId: __t._id,
+          notificationTopicId: topic._id,
         });
 
         if (countDevice < 999) {
-          sub = __t;
+          sub = topic;
           breakFor = true;
           break;
         }
@@ -413,10 +413,10 @@ class NotificationModule {
         });
 
       await Promise.all(
-        devices.map(async (__t) => {
-          if (__t.notificationTopicId)
-            await this.unsubscribeTopic(__t.notificationTopicId, userDevice);
-          return __t;
+        devices.map(async (device) => {
+          if (device.notificationTopicId)
+            await this.unsubscribeTopic(device.notificationTopicId, userDevice);
+          return device;
         }),
       );
 
@@ -537,9 +537,9 @@ class NotificationModule {
                     let topicDevices = await NotificationTopicDeviceModel.find(options)
                       .limit(999)
                       .skip(0);
-                    for (let i = 0; i < topicDevices.length; i++) {
-                      let __device = topicDevices[i];
-                      if (__device.userId) await this.createPermission(_id, __device.userId, type);
+                    for (let i = 0, length = topicDevices.length; i < length; i++) {
+                      let device = topicDevices[i];
+                      if (device.userId) await this.createPermission(_id, device.userId, type);
                     }
                   }),
                 );
@@ -594,11 +594,9 @@ class NotificationModule {
                     createdAt: 1,
                   });
 
-                for (let j = 0; j < listDevice.length; j++) {
-                  let __s = listDevice[j];
-
-                  if (!devices.includes(__s.deviceToken)) devices.push(__s.deviceToken);
-                }
+                listDevice.forEach((device) => {
+                  if (!devices.includes(device.deviceToken)) devices.push(device.deviceToken);
+                });
 
                 page2++;
                 length2 = listDevice.length;
@@ -702,7 +700,7 @@ class NotificationModule {
     });
 
     if (!topicUser)
-      topicUser = await NotificationTopicUserModel.create({
+      await NotificationTopicUserModel.create({
         notificationTopicId: topic._id,
         userId: user._id,
       });

@@ -1,6 +1,7 @@
 const createError = require('http-errors');
 const UserModel = require('@v1/models/user-model');
 const OtpModule = require('@v1/modules/otp-module');
+const EmailModule = require('@v1/modules/email-module');
 
 class UserController {
   static async forgotPassword(req, res, next) {
@@ -9,7 +10,7 @@ class UserController {
       let user = await UserModel.findOne({
         email: email.trim().toLowerCase(),
       });
-      if (!user) return res.status(404).send({ error: 'user-not-found-by-email' });
+      if (!user) return next(createError.NotFound('user-not-found-by-email'));
 
       let generator = await OtpModule.generatorForgotPassword({
         email: email.trim().toLowerCase(),
@@ -18,14 +19,14 @@ class UserController {
       if (generator.status === 'new') {
         let emailSend = new EmailModule('forgot_password', 'vi', email);
 
-        await emailSend.send_email({
+        await emailSend.sendEmail({
           fullName: user.fullName,
           email: user.email,
           codeForgotPassword: generator.otp.code,
         });
       }
 
-      return res.status(200).send({ message: 'forgot_password-success' });
+      return res.status(201).json(user);
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -38,14 +39,14 @@ class UserController {
       let user = await UserModel.findOne({
         email,
       });
-      if (!user) return res.status(404).send({ error: 'user-not-found-by-email' });
+      if (!user) return next(createError.NotFound('user-not-found-by-email'));
 
       let status = await OtpModule.verify({ code, type: 'forgot_password', email });
-      if (!status) return res.status(422).send({ error: 'code-not-verify' });
+      if (!status) return next(createError.UnprocessableEntity('code-not-verify'));
 
       user.updatePassword = password;
       await user.save();
-      return res.status(200).send({ message: 'reset-password-success' });
+      return res.status(201).json(user);
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -69,7 +70,7 @@ class UserController {
         .select('-password');
       let count = await UserModel.countDocuments(options);
 
-      return res.status(200).send({ count, list });
+      return res.status(200).json({ count, list });
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));

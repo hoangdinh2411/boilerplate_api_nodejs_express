@@ -10,12 +10,12 @@ class VerifyController {
       let { email: emailUser } = req.query;
 
       if (emailUser) {
-        let user_exits = await UserModel.findOne({ email: emailUser.trim().toLowerCase() });
-        if (user_exits) return res.status(422).send({ error: 'email-registered' });
+        let exist = await UserModel.findOne({ email: emailUser.trim().toLowerCase() });
+        if (exist) return next(createError.Conflict('email-registered'));
       }
 
       let user = await UserModel.findOne({ _id: req.payload.id });
-      if (user.emailVerified) return res.status(422).send({ error: 'email-verified' });
+      if (user.emailVerified) return next(createError.UnprocessableEntity('email-verified'));
 
       let generator = await OtpModule.generatorForgotPassword({
         email: emailUser.trim().toLowerCase(),
@@ -28,21 +28,21 @@ class VerifyController {
           user.email || emailUser,
         );
 
-        await email.send_email(
+        await email.sendEmail(
           {
-            full_name: user.fullName,
+            fullName: user.fullName,
             email: user.email || emailUser,
-            code_otp: generator.otp.code,
+            codeOtp: generator.otp.code,
           },
           async () => {
             await ProcessLogModel.create({
-              created_by: req.payload.id,
+              createdBy: req.payload.id,
               type: 'email-verify',
             });
           },
         );
       }
-      return res.status(200).send({ message: 'send-email-success' });
+      return res.status(201).json({ message: 'send-email-success' });
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -54,7 +54,7 @@ class VerifyController {
       let { code, isRegister = false } = req.body;
       let user = await UserModel.findOne({ _id: req.payload.id });
       let status = await OtpModule.verify({ code, type: 'email-verify', email: user.email });
-      if (!status) return res.status(422).send({ error: 'code-not-verify' });
+      if (!status) return next(createError.UnprocessableEntity('code-not-verify'));
 
       await UserModel.findOneAndUpdate(
         { _id: req.payload.id },
@@ -65,13 +65,13 @@ class VerifyController {
 
       if (isRegister) {
         let email = new EmailModule('register_account', 'vi', user.email);
-        await email.send_email({
-          full_name: user.fullName,
+        await email.sendEmail({
+          fullName: user.fullName,
           email: user.email,
         });
       }
 
-      return res.status(200).send({ message: 'verified-email-success' });
+      return res.status(201).json({ message: 'verified-email-success' });
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));

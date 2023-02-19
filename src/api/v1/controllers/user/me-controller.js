@@ -10,12 +10,11 @@ const userValidate = require('@v1/validations/user-validate');
 class MeController {
   static async get(req, res, next) {
     try {
-      console.log(a);
       let user = await UserModel.findOne({
         _id: req.payload.id,
       }).select('-password');
 
-      return res.status(200).send(user);
+      return res.status(200).json(user);
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -59,7 +58,37 @@ class MeController {
             new: true,
           },
         ).select('-password');
-      return res.status(200).send(user);
+      return res.status(201).json(user);
+    } catch (error) {
+      console.error(error);
+      return next(createError.BadRequest(error.message));
+    }
+  }
+
+  static async updatePassword(req, res, next) {
+    try {
+      let { oldPassword, newPassword, logout } = req.body;
+      oldPassword = oldPassword.trim();
+      newPassword = newPassword.trim();
+      if (oldPassword === newPassword)
+        return next(createError.UnprocessableEntity('new-password-must-not-old-password'));
+
+      let user = await UserModel.findOne({ _id: req.payload.id });
+      if (!user.validatePassword(oldPassword))
+        return next(createError.UnprocessableEntity('old-password-is-incorrect'));
+
+      if (logout)
+        await TokenLogModel.updateMany({ userId: req.payload.id, status: true }, { status: false });
+      await TokenLogModel.create({
+        userId: req.payload.id,
+        time: Date.now(),
+        status: true,
+      });
+
+      user.updatePassword = newPassword;
+
+      await user.save();
+      return res.status(201).json(user);
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -69,9 +98,10 @@ class MeController {
   static async updateLanguage(req, res, next) {
     try {
       let { language } = req.body;
-      if (!language) return res.status(422).send({ error: 'language-is-require' });
+      if (!language) return next(createError.UnprocessableEntity('language-is-require'));
+
       let languageUser = await LanguageModel.findOne({ locale: language });
-      if (!languageUser) return res.status(404).send({ error: 'language-not-found' });
+      if (!languageUser) return next(createError.NotFound('language-not-found'));
       let user = await UserModel.findOneAndUpdate(
         { _id: req.payload.id },
         { language: languageUser._id },
@@ -79,7 +109,7 @@ class MeController {
           new: true,
         },
       ).select('-password');
-      return res.status(200).send(user);
+      return res.status(201).json(user);
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -105,7 +135,27 @@ class MeController {
         await notificationModule.registerTopicByName(create, 'all_device');
         await notificationModule.registerDeviceUserOld(create);
       }
-      return res.status(200).send(create);
+      return res.status(201).json(create);
+    } catch (error) {
+      console.error(error);
+      return next(createError.BadRequest(error.message));
+    }
+  }
+
+  static async deleteDevice(req, res, next) {
+    try {
+      let { deviceToken } = req.body;
+      let device = await UserDeviceModel.findOne({
+        deviceToken,
+        userId: req.payload.id,
+      });
+      if (device) await notificationModule.cancelTopic(device);
+      await UserDeviceModel.findOneAndDelete({
+        deviceToken,
+        userId: req.payload.id,
+      });
+
+      return res.status(204).json({ message: 'delete-device-success' });
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -128,62 +178,7 @@ class MeController {
       if (user.notification) await notificationModule.userRegister(user);
       else await notificationModule.userCancelRegister(user);
 
-      return res.status(200).send({ message: 'notification-update-status-success' });
-    } catch (error) {
-      console.error(error);
-      return next(createError.BadRequest(error.message));
-    }
-  }
-
-  static async deleteDevice(req, res, next) {
-    try {
-      let { deviceToken } = req.body;
-      let device = await UserDeviceModel.findOne({
-        deviceToken,
-        userId: req.payload.id,
-      });
-      if (device) await notificationModule.cancelTopic(device);
-      await UserDeviceModel.findOneAndDelete({
-        deviceToken,
-        userId: req.payload.id,
-      });
-
-      return res.send({ message: 'delete-device-success' });
-    } catch (error) {
-      console.error(error);
-      return next(createError.BadRequest(error.message));
-    }
-  }
-
-  static async updatePassword(req, res, next) {
-    try {
-      let { oldPassword, newPassword, logout } = req.body;
-      oldPassword = oldPassword.trim();
-      newPassword = newPassword.trim();
-      if (oldPassword === newPassword)
-        return res.status(422).send({
-          error: 'new-password-must-not-old-password',
-        });
-
-      let user = await UserModel.findOne({ _id: req.payload.id });
-
-      if (!user.validatePassword(oldPassword))
-        return res.status(422).send({
-          error: 'old-password-is-incorrect',
-        });
-
-      if (logout)
-        await TokenLogModel.updateMany({ userId: req.payload.id, status: true }, { status: false });
-      await TokenLogModel.create({
-        userId: req.payload.id,
-        time: Date.now(),
-        status: true,
-      });
-
-      user.updatePassword = newPassword;
-
-      await user.save();
-      return res.status(200).send({ message: 'update-password-success' });
+      return res.status(201).json(user);
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));
@@ -205,7 +200,7 @@ class MeController {
         });
       }
       await redis.del(req.payload.id.toString());
-      return res.status(200).send({ message: 'user-logout-success' });
+      return res.status(204).json({ message: 'user-logout-success' });
     } catch (error) {
       console.error(error);
       return next(createError.BadRequest(error.message));

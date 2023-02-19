@@ -7,19 +7,31 @@ const compression = require('compression');
 const morgan = require('morgan');
 const createError = require('http-errors');
 const db = require('~/api/database/mongo-connect');
-const { logEvent } = require('@v1/helpers/log');
+const { logEvent } = require('@v1/helpers/log-helper');
+const app = express();
+const server = require('http').createServer(app);
+// const SocketModule = require('@v1/modules/socket-module');
+// const { socketMiddleware } = require('@v1/middlewares/socket-middleware');
+// const cronjob = require('@v1/cronjobs');
+// const io = require('socket.io')(server, {
+//   serveClient: false,
+//   cors: {
+//     origins: '*',
+//     // credentials: true //Để bật cookie HTTP qua CORS
+//   },
+// });
 
 // cải thiện hiệu năng
 // const os = require("os");
 // process.env.UV_THREADPOOL_SIZE = os.cpus().length - 2;
 
-global.appRoot = path.resolve(__dirname);
+global.__appRoot = path.resolve(__dirname);
+// global.__io = io;
 
 require('dotenv').config();
-require('~/api/database/redis-connect');
+const { redis } = require('~/api/database/redis-connect');
 
-const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 9999;
 
 app.use(cors());
 app.use(express.json());
@@ -34,60 +46,28 @@ app.use(
   }),
 );
 
-const io = require('socket.io')(
-  app.listen(port, async () => {
-    await db.connect();
-    // cronjobs.init();
-    console.log('RESTFUL API server started on: ' + port);
-  }),
-  {
-    serveClient: false,
-    cors: {
-      origins: '*',
-      // credentials: true //Để bật cookie HTTP qua CORS
-    },
-  },
-);
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (token)
-    jwt.verify(token, process.env.JWT_SECRET_USER, (err, decoded) => {
-      if (err) return next(createError.Unauthorized(err.message));
-      socket.join(decoded.id);
-      // usersConnect[decoded.id] = usersConnect[decoded.id] || [];
-      // usersConnect[decoded.id].push(socket.id);
-      console.log('socket connected');
-      next();
-    });
-  else {
-    const error = new Error('not token');
-    return next(error);
-  }
-});
-
-io.on('connection', (socket) => {
-  socket.on('disconnect', () => {
-    // delete usersConnect[socket.id];
-  });
-});
-
-app.use(function (req, res, next) {
-  req.io = io;
-  // req.usersConnect = usersConnect;
-  next();
-});
+// global.__io.use(socketMiddleware);
+// global.__io.on('connection', SocketModule.connection);
 
 app.use('/api', require('~/api'));
+app.use('/media', require('@v1/routers/media/index'));
 app.use(function (req, res, next) {
   next(createError.NotFound('This router does not exist.'));
 });
 app.use(function (err, req, res, next) {
-  logEvent(`user_id:${req.payload?.id} --> ${req.method}:${req.url} --> err:${err.message}`);
   let status = err.status || 500;
+  status === 400 &&
+    logEvent(
+      `user_id:${req.payload?.id} --> ${req.method}:${req.url} ${status} --> err:${err.message}`,
+    );
   return res.status(status).json({
     status,
     error: err.message,
   });
 });
 
-module.exports = app;
+app.listen(port, async () => {
+  await db.connect();
+  // cronjob.init();
+  console.log('RESTFUL API server started on: ' + port);
+});

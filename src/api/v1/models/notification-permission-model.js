@@ -6,7 +6,7 @@ const notificationPermissionSchema = new mongoose.Schema({
     ref: 'notification',
     required: true,
   },
-  read_by: String,
+  readBy: String,
   type: {
     type: String,
     default: 'all', // users, topic

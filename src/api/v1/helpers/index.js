@@ -77,4 +77,22 @@ module.exports = {
   typeValue: function (value) {
     return Object.prototype.toString.call(value).slice(8, -1);
   },
+  objectToQueryString: (obj) =>
+    Object.keys(obj)
+      .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(obj[key])}`)
+      .join('&'),
+  deepFlatten: (arr) => [].concat(...arr.map((v) => (Array.isArray(v) ? deepFlatten(v) : v))),
+  fromCamelCase: (str, separator = '_') =>
+    str
+      .replace(/(\[a-z\\d\])(\[A-Z\])/g, '$1' + separator + '$2')
+      .replace(/(\[A-Z\]+)(\[A-Z\]\[a-z\\d\]+)/g, '$1' + separator + '$2')
+      .toLowerCase(),
+  isAbsoluteURL: (str) => /^\[a-z\]\[a-z0-9+.-\]\*:/.test(str),
+  getDaysDiffBetweenDates: (dateInitial, dateFinal) =>
+    (dateFinal - dateInitial) / (1000 * 3600 * 24),
+  uniqueElementsBy: (arr, fn) =>
+    arr.reduce((acc, v) => {
+      if (!acc.some((x) => fn(v, x))) acc.push(v);
+      return acc;
+    }, []),
 };

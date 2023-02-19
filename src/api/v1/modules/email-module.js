@@ -1,18 +1,23 @@
-const mailGun = require('mailgun-js')({
-  apiKey: process.env.MAIL_GUN_TOKEN,
-  domain: process.env.MAIL_GUN_DOMAIN,
-});
+const nodemailer = require('nodemailer');
+const { OAuth2Client } = require('google-auth-library');
 const EmailTemplate = require('@v1/models/email-template-model');
+const myOAuth2Client = new OAuth2Client(
+  process.env.OAUTH_CLIENT_ID,
+  process.env.OAUTH_CLIENT_SECRET,
+);
+myOAuth2Client.setCredentials({
+  refresh_token: process.env.OAUTH_REFRESH_TOKEN,
+});
 
 class EmailModule {
   constructor(keyword, language, to) {
     this.keyword = keyword;
     this.language = language;
-    this.mailGun = mailGun;
     this.to = to;
   }
 
-  async send_email({ codeForgotPassword, email, fullName, amount, codeOtp }, callback) {
+  async sendEmail({ codeForgotPassword, email, fullName, amount, codeOtp }) {
+    let transporter = await this.generateTransporter();
     let template = await EmailTemplate.findOne({
       keyword: this.keyword,
     });
@@ -33,18 +38,32 @@ class EmailModule {
       amount,
       codeOtp,
     });
-    return await this.mailGun.messages().send(
-      {
-        from,
-        to: this.to,
-        subject,
-        html: body,
+    let info = await transporter.sendMail({
+      from,
+      to: this.to,
+      subject,
+      html: body,
+    });
+    console.log(info);
+    return info;
+  }
+
+  async generateTransporter() {
+    const accessTokenObject = await myOAuth2Client.getAccessToken();
+    const accessToken = accessTokenObject?.token;
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.MAIL_USERNAME,
+        pass: process.env.MAIL_PASSWORD,
+        clientId: process.env.OAUTH_CLIENT_ID,
+        clientSecret: process.env.OAUTH_CLIENT_SECRET,
+        refreshToken: process.env.OAUTH_REFRESH_TOKEN,
+        accessToken: accessToken,
       },
-      async (error, body) => {
-        console.log('callback : ', error);
-        if (!error && callback) callback();
-      },
-    );
+    });
+    return transporter;
   }
 
   replaceContent(content, { codeForgotPassword, email, fullName, codeOtp, amount }) {

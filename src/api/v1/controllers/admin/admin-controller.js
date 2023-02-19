@@ -28,10 +28,10 @@ class AdminController {
 
   static async createInit(req, res, next) {
     try {
-      let existed = await AdminModel.findOne({
+      let exist = await AdminModel.findOne({
         username: process.env.ADMIN_ACCOUNT_EMAIL,
       });
-      if (existed) return res.status(422).json({ error: 'username-exists' });
+      if (exist) return next(createError.Conflict('username-exist'));
       let newAdmin = new AdminModel({
         username: process.env.ADMIN_ACCOUNT_EMAIL,
         name: 'Admin',
@@ -58,9 +58,12 @@ class AdminController {
     let { username, password, remember } = req.body;
     if (!remember) remember = false;
 
-    return passport.authenticate('local', { session: false }, (err, passportUser, info) => {
+    return passport.authenticate('local', { session: false }, async (err, passportUser, info) => {
       if (err) return next(createError.Unauthorized(err));
-      if (passportUser) return res.json(passportUser.jsonData(remember));
+      if (passportUser) {
+        let admin = await passportUser.jsonData(remember);
+        return res.json(admin);
+      }
       return next(createError.BadRequest(info));
     })(req, res, next);
   }

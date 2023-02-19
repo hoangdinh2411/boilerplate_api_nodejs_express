@@ -2,7 +2,7 @@ const NotificationModel = require('@v1/models/`notification-model');
 const NotificationTemplateModel = require('@v1/models/notification-template-model');
 
 module.exports = {
-  send_now: async function ({ type, key, typeSend, params = [], action = {} }, data) {
+  sendNow: async function ({ type, key, typeSend, params = [], action = {} }, data) {
     try {
       let template = await NotificationTemplateModel.findOne({
         keyword: key,

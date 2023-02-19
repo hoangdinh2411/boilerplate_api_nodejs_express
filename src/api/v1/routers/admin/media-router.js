@@ -4,6 +4,6 @@ const MediaController = require('@v1/controllers/admin/media-controller');
 const router = express.Router();
 
 // router.post('/media/cloud', uploadCloud.single('file'), MediaController.cloudSingle);
-router.post('/media/upload', uploadCloud.array('file'), MediaController.upload);
+router.post('/upload', uploadCloud.array('file'), MediaController.upload);
 
 module.exports = router;

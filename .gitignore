@@ -83,6 +83,6 @@ dist
 # Service worker
 sw.*
 
-admin.json
-
-rest.http
+src/config/
+src/public
+src/logs
